@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { getDB } from './_layout';
 import { AppSchema } from '@/instant.schema';
 import { InstaQLEntity, id } from '@instantdb/react-native';
@@ -19,6 +20,7 @@ export default function HomeScreen() {
   const db = getDB(); // Get our SQLite-powered InstantDB
 
   const [newItemName, setNewItemName] = useState('');
+  const [searchText, setSearchText] = useState('');
 
   // Query data from InstantDB (using SQLite storage)
   const { data, isLoading, error } = db.useQuery({
@@ -26,6 +28,9 @@ export default function HomeScreen() {
   });
 
   const items = data?.inventory || [];
+  const filteredItems = items.filter(item =>
+    item.name.toLowerCase().includes(searchText.toLowerCase())
+  );
 
   // Add new item
   const addItem = async () => {
@@ -70,8 +75,18 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Inventory ({items.length} items)</Text>
+      <Text style={styles.title}>Inventory ({filteredItems.length} items)</Text>
       <Text style={styles.subtitle}>📦 Powered by SQLite Storage</Text>
+
+      <View style={styles.searchContainer}>
+        <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search items..."
+          value={searchText}
+          onChangeText={setSearchText}
+        />
+      </View>
 
       <View style={styles.inputContainer}>
         <TextInput
@@ -84,7 +99,7 @@ export default function HomeScreen() {
       </View>
 
       <FlatList
-        data={items}
+        data={filteredItems}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View style={styles.item}>
@@ -122,6 +137,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 20,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    marginBottom: 20,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
   },
   inputContainer: {
     flexDirection: 'row',
