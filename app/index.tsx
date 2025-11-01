@@ -1,64 +1,157 @@
-import { db } from "@/lib/db";
-import { AppSchema } from "@/instant.schema";
-import { InstaQLEntity } from "@instantdb/react-native";
-import { View, Text, Button } from "react-native";
+// app/index.tsx
+import { useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TextInput,
+  Button,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
+import { getDB } from './_layout';
+import { AppSchema } from '@/instant.schema';
+import { InstaQLEntity, id } from '@instantdb/react-native';
 
-type Color = InstaQLEntity<AppSchema, "colors">;
+type InventoryItem = InstaQLEntity<AppSchema, 'inventory'>;
 
-const selectId = "4d39508b-9ee2-48a3-b70d-8192d9c5a059";
+export default function HomeScreen() {
+  const db = getDB(); // Get our SQLite-powered InstantDB
 
-function App() {
-  const { isLoading, error, data } = db.useQuery({
-    colors: {
-      $: { where: { id: selectId } },
-    },
+  const [newItemName, setNewItemName] = useState('');
+
+  // Query data from InstantDB (using SQLite storage)
+  const { data, isLoading, error } = db.useQuery({
+    inventory: {}, // Replace with your actual collection name
   });
+
+  const items = data?.inventory || [];
+
+  // Add new item
+  const addItem = async () => {
+    if (!newItemName.trim()) return;
+
+    try {
+      // Generate a unique ID
+      const itemId = id();
+
+      // Add to InstantDB (saves to SQLite)
+      await db.transact([
+        db.tx.inventory[itemId].update({
+          name: newItemName,
+          quantity: 0,
+          createdAt: Date.now(),
+        }),
+      ]);
+
+      setNewItemName('');
+      console.log('✅ Item added to SQLite');
+    } catch (error) {
+      console.error('Error adding item:', error);
+    }
+  };
+
   if (isLoading) {
     return (
-      <View>
-        <Text>Loading...</Text>
+      <View style={styles.center}>
+        <ActivityIndicator size="large" />
+        <Text>Loading from SQLite...</Text>
       </View>
     );
   }
+
   if (error) {
     return (
-      <View>
-        <Text>Error: {error.message}</Text>
+      <View style={styles.center}>
+        <Text>Error loading data: {error.message}</Text>
       </View>
     );
   }
 
-  return <Main color={data.colors[0]} />;
-}
-
-function Main(props: { color?: Color }) {
-  const { value } = props.color || { value: "lightgray" };
-
   return (
-    <View
-      className="flex flex-1 items-center justify-center"
-      style={[{ backgroundColor: value }]}
-    >
-      <View className="bg-white opacity-80 p-3 rounded-lg">
-        <Text className="text-[24px] font-bold mb-4">
-          Hi! pick your favorite color
-        </Text>
-        <View className="my-4">
-          {["green", "blue", "purple"].map((c) => {
-            return (
-              <Button
-                title={c}
-                onPress={() => {
-                  db.transact(db.tx.colors[selectId].update({ value: c }));
-                }}
-                key={c}
-              />
-            );
-          })}
-        </View>
+    <View style={styles.container}>
+      <Text style={styles.title}>Inventory ({items.length} items)</Text>
+      <Text style={styles.subtitle}>📦 Powered by SQLite Storage</Text>
+
+      <View style={styles.inputContainer}>
+        <TextInput
+          style={styles.input}
+          placeholder="Enter item name..."
+          value={newItemName}
+          onChangeText={setNewItemName}
+        />
+        <Button title="Add" onPress={addItem} />
       </View>
+
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.item}>
+            <Text style={styles.itemName}>{item.name}</Text>
+            <Text style={styles.itemDate}>
+              {new Date(item.createdAt).toLocaleDateString()}
+            </Text>
+          </View>
+        )}
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No items yet. Add one above!</Text>
+        }
+      />
     </View>
   );
 }
 
-export default App;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    marginBottom: 20,
+    gap: 10,
+  },
+  input: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    borderRadius: 5,
+  },
+  item: {
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  itemName: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  itemDate: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 5,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: '#999',
+    marginTop: 20,
+  },
+});

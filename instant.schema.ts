@@ -16,6 +16,11 @@ const _schema = i.schema({
     colors: i.entity({
       value: i.string(),
     }),
+    inventory: i.entity({
+      name: i.string(),
+      quantity: i.number(),
+      createdAt: i.number(),
+    }),
   },
   rooms: {},
   links: {
